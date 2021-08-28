@@ -4,8 +4,11 @@
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
+#include "Components/ArrowComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "MainHUDWidget.h"
+
 
 APreTestCharacter::APreTestCharacter()
 {
@@ -41,8 +44,24 @@ APreTestCharacter::APreTestCharacter()
 	GetCharacterMovement()->MaxWalkSpeed = 600.f;
 	GetCharacterMovement()->MaxFlySpeed = 600.f;
 
+	PressQTime = 0.0f;
+
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named MyCharacter (to avoid direct content references in C++)
+}
+
+void APreTestCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+
+	OpenHUDWidget();
+}
+
+void APreTestCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	CloseHUDWidget();
+
+	Super::EndPlay(EndPlayReason);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -57,6 +76,12 @@ void APreTestCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 
 	PlayerInputComponent->BindTouch(IE_Pressed, this, &APreTestCharacter::TouchStarted);
 	PlayerInputComponent->BindTouch(IE_Released, this, &APreTestCharacter::TouchStopped);
+
+	PlayerInputComponent->BindAction("Action0", IE_Pressed, this, &APreTestCharacter::ActionQPreesed);
+	PlayerInputComponent->BindAction("Action0", IE_Released, this, &APreTestCharacter::ActionQReleased);
+
+	PlayerInputComponent->BindAction("Action1", IE_Pressed, this, &APreTestCharacter::ActionWPreesed);
+	PlayerInputComponent->BindAction("Action1", IE_Released, this, &APreTestCharacter::ActionWReleased);
 }
 
 void APreTestCharacter::MoveRight(float Value)
@@ -76,3 +101,125 @@ void APreTestCharacter::TouchStopped(const ETouchIndex::Type FingerIndex, const 
 	StopJumping();
 }
 
+void APreTestCharacter::ActionQPreesed()
+{
+	PressQTime = GetGameTimeSinceCreation();
+	bWPressedPossible = true;
+}
+
+void APreTestCharacter::ActionQReleased()
+{
+	float ReleaseTime = GetGameTimeSinceCreation();
+	float TimeToPressed = ReleaseTime - PressQTime;
+	if (TimeToPressed < 3.0f)
+		CreateProjectile(EProjectileType::Normal);
+	else
+		CreateProjectile(EProjectileType::Charge);
+
+	PressQTime = 0.0f;
+}
+
+void APreTestCharacter::ActionWPreesed()
+{
+	if (PressQTime <= 0.0f || !bWPressedPossible)
+		return;
+
+	bWPressedPossible = false;
+
+	float ReleaseTime = GetGameTimeSinceCreation();
+	float TimeToPressed = ReleaseTime - PressQTime;
+	if (TimeToPressed <= 1.0f)
+	{
+		CreateProjectile(EProjectileType::Seperate);
+	}
+}
+
+void APreTestCharacter::ActionWReleased()
+{
+	CreateProjectile(EProjectileType::Reflect);
+}
+
+void APreTestCharacter::OpenHUDWidget()
+{
+	if (nullptr == MainHUDWidget)
+	{
+		UUserWidget* NewWidget = CreateWidget(GetGameInstance(), MainHUDWidgetClass);
+		MainHUDWidget = Cast<UMainHUDWidget>(NewWidget);
+	}
+
+	if (MainHUDWidget)
+		MainHUDWidget->AddToViewport();
+}
+
+void APreTestCharacter::CloseHUDWidget()
+{
+	if (nullptr != MainHUDWidget && MainHUDWidget->IsInViewport())
+		MainHUDWidget->RemoveFromViewport();
+}
+
+void APreTestCharacter::CreateProjectile(EProjectileType ProjectileType)
+{
+	UWorld* World = GetWorld();
+	if (nullptr == World)
+		return;
+
+	FVector Location;
+	FRotator Rotation;
+	TArray<UActorComponent*> StartPointComponents = GetComponentsByTag(UActorComponent::StaticClass(), "ProjectileStartPoint");
+	if (StartPointComponents.IsValidIndex(0))
+	{
+		USceneComponent* StartPointComponent = Cast<USceneComponent>(StartPointComponents[0]);
+		if (StartPointComponent)
+		{
+			Location = StartPointComponent->GetComponentLocation();
+			Rotation = StartPointComponent->GetComponentRotation();
+		}
+	}
+
+	CreateProjectileImpl(ProjectileType, Location, Rotation);
+}
+
+void APreTestCharacter::CreateProjectileImpl(EProjectileType ProjectileType, const FVector& Location, const FRotator& Rotation)
+{
+	UWorld* World = GetWorld();
+	if (nullptr == World)
+		return;
+
+	TSubclassOf<ABaseProjectile>* SubClass = ProjectileClassList.Find(ProjectileType);
+	if (!SubClass)
+		return;
+
+	ABaseProjectile* NewProjectile = World->SpawnActor<ABaseProjectile>(SubClass->Get(), Location, Rotation);
+	if (NewProjectile && ProjectileType == EProjectileType::Seperate)
+	{
+		NewProjectile->OnEndPlay.AddDynamic(this, &APreTestCharacter::EndPlayForSperate);
+	}
+}
+
+void APreTestCharacter::EndPlayForSperate(AActor* Actor, EEndPlayReason::Type EndPlayReason)
+{
+	if (!Actor)
+		return;
+
+	ABaseProjectile* Projectile = Cast<ABaseProjectile>(Actor);
+	if (!Projectile || Projectile->IsDestroyByHit())
+		return;
+
+	Projectile->ForEachComponent<UArrowComponent>(false, [&](const UArrowComponent* InArrowComp)
+	{
+		if (!InArrowComp)
+			return;
+
+		FVector Location = InArrowComp->GetComponentLocation();
+		FRotator Rotation = InArrowComp->GetComponentRotation();
+		float OriginPitch = Rotation.Pitch;
+
+		CreateProjectileImpl(EProjectileType::Normal, Location, Rotation);
+
+		Rotation.Pitch = OriginPitch - 45.0f;
+		CreateProjectileImpl(EProjectileType::Normal, Location, Rotation);
+
+		Rotation.Pitch = OriginPitch + 45.0f;
+		CreateProjectileImpl(EProjectileType::Normal, Location, Rotation);
+	});
+}

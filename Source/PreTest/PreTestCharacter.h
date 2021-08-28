@@ -4,7 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "BaseProjectile.h"
 #include "PreTestCharacter.generated.h"
+
 
 UCLASS(config=Game)
 class APreTestCharacter : public ACharacter
@@ -19,8 +21,11 @@ class APreTestCharacter : public ACharacter
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class USpringArmComponent* CameraBoom;
 
-protected:
+	class UMainHUDWidget* MainHUDWidget;
+	float PressQTime;
+	bool bWPressedPossible;
 
+protected:
 	/** Called for side to side input */
 	void MoveRight(float Val);
 
@@ -30,10 +35,30 @@ protected:
 	/** Handle touch stop event. */
 	void TouchStopped(const ETouchIndex::Type FingerIndex, const FVector Location);
 
+	void ActionQPreesed();
+	void ActionQReleased();
+
+	void ActionWPreesed();
+	void ActionWReleased();
+
+	void OpenHUDWidget();
+	void CloseHUDWidget();
+
+	void CreateProjectile(enum EProjectileType ProjectileType);
+	void CreateProjectileImpl(EProjectileType ProjectileType, const FVector& Location, const FRotator& Rotation);
+
+	UFUNCTION()
+	void EndPlayForSperate(AActor* Actor, EEndPlayReason::Type EndPlayReason);
+
 	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* InputComponent) override;
 	// End of APawn interface
 
+	UPROPERTY(EditAnywhere, Category = "PreTest")
+	TSubclassOf<UMainHUDWidget> MainHUDWidgetClass;
+
+	UPROPERTY(EditAnywhere, Category = "PreTest")
+	TMap<EProjectileType, TSubclassOf<class ABaseProjectile>> ProjectileClassList;
 
 public:
 	APreTestCharacter();
@@ -42,4 +67,8 @@ public:
 	FORCEINLINE class UCameraComponent* GetSideViewCameraComponent() const { return SideViewCameraComponent; }
 	/** Returns CameraBoom subobject **/
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
+
+	virtual void BeginPlay() override;
+	void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
 };

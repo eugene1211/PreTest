@@ -14,4 +14,7 @@ class PRETEST_API AProjectileReflect : public ABaseProjectile
 {
 	GENERATED_BODY()
 	
+public:
+	void OnHit(AActor* SelfActor, AActor* OtherActor, FVector NormalImpulse, const FHitResult& Hit) override;
+
 };

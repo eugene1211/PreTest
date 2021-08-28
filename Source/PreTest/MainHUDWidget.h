@@ -6,6 +6,7 @@
 #include "Blueprint/UserWidget.h"
 #include "MainHUDWidget.generated.h"
 
+
 /**
  * 
  */
@@ -14,4 +15,10 @@ class PRETEST_API UMainHUDWidget : public UUserWidget
 {
 	GENERATED_BODY()
 	
+public:
+	UPROPERTY()
+	UUserWidget* UW_ProjectileInfo;
+
+	UPROPERTY()
+	class UProgressBar* ProgressBar_Charge;
 };
