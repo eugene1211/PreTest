@@ -7,13 +7,6 @@
 #include "Projectile/BaseProjectile.h"
 #include "PreTestCharacter.generated.h"
 
-UENUM()
-enum class EActionKeyType : uint8
-{
-	ActionKey0,
-	ActionKey1,
-	Max,
-};
 
 UCLASS(config=Game)
 class APreTestCharacter : public ACharacter
@@ -31,6 +24,9 @@ class APreTestCharacter : public ACharacter
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "PreTest", meta = (AllowPrivateAccess = "true"))
 	class UProjectileManagementComponent* ProjectileManagementComponent;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "PreTest", meta = (AllowPrivateAccess = "true"))
+	class UActionKeyManagementComponent* ActionKeyManagementComponent;
+
 public:
 	APreTestCharacter();
 
@@ -42,14 +38,6 @@ public:
 	virtual void BeginPlay() override;
 	void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	float GetActionKeyPressTime(const EActionKeyType& ActionKeyType) const;
-	float GetActionKeyPressedTime(const EActionKeyType& ActionKeyType) const;
-
-	float GetAction2HoldTime() const { return Action2HoldTime; }
-
-	DECLARE_EVENT_TwoParams(APreTestCharacter, FOnKeyPressedTimeChanged, const EActionKeyType&, const float&);
-	FOnKeyPressedTimeChanged OnActionKeyPressTimeChanged;
-
 protected:
 	/** Called for side to side input */
 	void MoveRight(float Val);
@@ -59,14 +47,15 @@ protected:
 
 	/** Handle touch stop event. */
 	void TouchStopped(const ETouchIndex::Type FingerIndex, const FVector Location);
-	 
-	void UpdateActionKeyState(EActionKeyType ActionKeyType, bool bPressed);
-	bool IsPressedAnyActionKey(EActionKeyType ActionKeyTypeToIgnore) const;
+	
+	UFUNCTION()
+	void CreateProjectile(const EProjectileType& ProjectileType);
 
 	void OpenHUDWidget();
 	void CloseHUDWidget();
 
-	void CreateProjectile(EProjectileType ProjectileType);
+	UFUNCTION()
+	void UpdateActionKeyState(EActionKeyType ActionKeyType, bool bPressed);
 
 	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* InputComponent) override;
@@ -75,19 +64,7 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "PreTest")
 	TSubclassOf<class UUserWidget> MainHUDWidgetClass;
 
-	UPROPERTY(EditAnywhere, Category = "PreTest")
-	float Action2HoldTime;
-
-	UPROPERTY(EditAnywhere, Category = "PreTest")
-	float Action3HoldTime;
-
 private:
-	void SetActionKeyPressTime(EActionKeyType ActionKeyType, float Time);
-
 	class UUserWidget* MainHUDWidget;
-
-	bool bBlockActionKey;
-	TArray<bool> ActionKeyTypeStates;
-	TArray<float> ActionKeyPressTimes;
 
 };

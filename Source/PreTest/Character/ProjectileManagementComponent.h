@@ -17,7 +17,7 @@ public:
 	// Sets default values for this component's properties
 	UProjectileManagementComponent();
 
-	void CreateProjectile(EProjectileType ProjectileType, const FVector& Location, const FRotator& Rotation);
+	void CreateProjectile(const EProjectileType& ProjectileType, const FVector& Location, const FRotator& Rotation);
 
 	uint32 GetProjectileObjectCount(EProjectileType ProjectileType);
 	void ResetProjectileObjectCounts();

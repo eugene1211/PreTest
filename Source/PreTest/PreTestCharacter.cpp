@@ -9,6 +9,7 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Character/ProjectileManagementComponent.h"
+#include "Character/ActionKeyManagementComponent.h"
 
 
 APreTestCharacter::APreTestCharacter()
@@ -45,13 +46,9 @@ APreTestCharacter::APreTestCharacter()
 	GetCharacterMovement()->MaxWalkSpeed = 600.f;
 	GetCharacterMovement()->MaxFlySpeed = 600.f;
 
-	// Create Projectile Management Component
+	// Create Other Component
 	ProjectileManagementComponent = CreateDefaultSubobject<UProjectileManagementComponent>(TEXT("ProjManageComp"));
-
-	// init variable
-	bBlockActionKey = false;
-	ActionKeyTypeStates.Init(false, static_cast<uint8>(EActionKeyType::Max));
-	ActionKeyPressTimes.Init(0.0f, static_cast<uint8>(EActionKeyType::Max));
+	ActionKeyManagementComponent = CreateDefaultSubobject<UActionKeyManagementComponent>(TEXT("ActionKeyManageComp"));
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named MyCharacter (to avoid direct content references in C++)
@@ -62,39 +59,37 @@ void APreTestCharacter::BeginPlay()
 	Super::BeginPlay();
 
 	OpenHUDWidget();
+
+	if (UActorComponent* Comp = GetComponentByClass(UActionKeyManagementComponent::StaticClass()))
+	{
+		if (UActionKeyManagementComponent* ActionKeyComp = Cast<UActionKeyManagementComponent>(Comp))
+		{
+			ActionKeyComp->OnActionEnabled.AddUObject(this, &APreTestCharacter::CreateProjectile);
+		}
+	}
 }
 
 void APreTestCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	CloseHUDWidget();
 
+	if (UActorComponent* Comp = GetComponentByClass(UActionKeyManagementComponent::StaticClass()))
+	{
+		if (UActionKeyManagementComponent* ActionKeyComp = Cast<UActionKeyManagementComponent>(Comp))
+		{
+			ActionKeyComp->OnActionEnabled.RemoveAll(this);
+		}
+	}
+
 	Super::EndPlay(EndPlayReason);
-}
-
-float APreTestCharacter::GetActionKeyPressTime(const EActionKeyType& ActionKeyType) const
-{
-	if (ActionKeyType == EActionKeyType::Max)
-		return 0.0f;
-
-	uint8 Index = static_cast<uint8>(ActionKeyType);
-	if (ActionKeyPressTimes[Index] <= 0.0f)
-		return 0.0f;
-
-	return ActionKeyPressTimes[Index];
-}
-
-float APreTestCharacter::GetActionKeyPressedTime(const EActionKeyType& ActionKeyType) const
-{
-	float PressTime = GetActionKeyPressTime(ActionKeyType);
-	return PressTime <= 0.0f? 0.0f : GetGameTimeSinceCreation() - ActionKeyPressTimes[static_cast<uint8>(ActionKeyType)];
 }
 
 //////////////////////////////////////////////////////////////////////////
 // Input
 
 DECLARE_DELEGATE_TwoParams(FInputActionKey, EActionKeyType, bool);
-#define BIND_ACTION_KEY(InputComponent, ActionName, InputEvent, Param1, Param2) \
-	InputComponent->BindAction<FInputActionKey>(ActionName, InputEvent, this, &APreTestCharacter::UpdateActionKeyState, Param1, Param2);
+#define BIND_ACTION_KEY(InputComponent, ActionName, InputEvent, Comp, ActionKey, bPressed) \
+	InputComponent->BindAction<FInputActionKey>(ActionName, InputEvent, Comp, &UActionKeyManagementComponent::UpdateActionKeyState, ActionKey, bPressed);
 
 void APreTestCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
 {
@@ -106,10 +101,16 @@ void APreTestCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 	PlayerInputComponent->BindTouch(IE_Pressed, this, &APreTestCharacter::TouchStarted);
 	PlayerInputComponent->BindTouch(IE_Released, this, &APreTestCharacter::TouchStopped);
 
-	BIND_ACTION_KEY(PlayerInputComponent, "ActionKey0", IE_Pressed, EActionKeyType::ActionKey0, true);
-	BIND_ACTION_KEY(PlayerInputComponent, "ActionKey0", IE_Released, EActionKeyType::ActionKey0, false);
-	BIND_ACTION_KEY(PlayerInputComponent, "ActionKey1", IE_Pressed, EActionKeyType::ActionKey1, true);
-	BIND_ACTION_KEY(PlayerInputComponent, "ActionKey1", IE_Released, EActionKeyType::ActionKey1, false);
+	if (UActorComponent* Comp = GetComponentByClass(UActionKeyManagementComponent::StaticClass()))
+	{
+		if (UActionKeyManagementComponent* ActionKeyComp = Cast<UActionKeyManagementComponent>(Comp))
+		{
+			BIND_ACTION_KEY(PlayerInputComponent, "ActionKey0", IE_Pressed, ActionKeyComp, EActionKeyType::ActionKey0, true);
+			BIND_ACTION_KEY(PlayerInputComponent, "ActionKey0", IE_Released, ActionKeyComp, EActionKeyType::ActionKey0, false);
+			BIND_ACTION_KEY(PlayerInputComponent, "ActionKey1", IE_Pressed, ActionKeyComp, EActionKeyType::ActionKey1, true);
+			BIND_ACTION_KEY(PlayerInputComponent, "ActionKey1", IE_Released, ActionKeyComp, EActionKeyType::ActionKey1, false);
+		}
+	}
 }
 
 void APreTestCharacter::MoveRight(float Value)
@@ -129,121 +130,7 @@ void APreTestCharacter::TouchStopped(const ETouchIndex::Type FingerIndex, const 
 	StopJumping();
 }
 
-void APreTestCharacter::UpdateActionKeyState(EActionKeyType ActionKeyType, bool bPressedNew)
-{
-	if (!bBlockActionKey)
-	{
-		switch (ActionKeyType)
-		{
-			case EActionKeyType::ActionKey0:
-			{
-				if (IsPressedAnyActionKey(ActionKeyType))
-				{
-					bBlockActionKey = true;
-					break;
-				}
-				
-				if (bPressedNew)
-				{
-					SetActionKeyPressTime(ActionKeyType, GetGameTimeSinceCreation());
-				}
-				else
-				{
-					float ReleaseTime = GetGameTimeSinceCreation();
-					uint8 Index = static_cast<uint8>(ActionKeyType);
-					float TimeToPressed = ReleaseTime - ActionKeyPressTimes[Index];
-					if (TimeToPressed < Action2HoldTime)
-					{
-						CreateProjectile(EProjectileType::Normal);
-						bBlockActionKey = true;
-					}
-					else
-					{
-						CreateProjectile(EProjectileType::Charge);
-						bBlockActionKey = true;
-					}
-				}
-			}
-			break;
-
-			case EActionKeyType::ActionKey1:
-			{
-				if (bPressedNew)
-				{
-					uint8 Index = static_cast<uint8>(EActionKeyType::ActionKey0);
-					if (ActionKeyPressTimes[Index] <= 0.0f)
-						break;
-
-					float ReleaseTime = GetGameTimeSinceCreation();
-					float TimeToPressed = ReleaseTime - ActionKeyPressTimes[Index];
-					if (TimeToPressed <= Action3HoldTime)
-					{
-						CreateProjectile(EProjectileType::Seperate);
-						bBlockActionKey = true;
-					}
-				}
-				else
-				{
-					if (IsPressedAnyActionKey(ActionKeyType))
-					{
-						bBlockActionKey = true;
-						break;
-					}
-
-					CreateProjectile(EProjectileType::Reflect);
-					bBlockActionKey = true;
-				}
-			}
-			break;
-		}
-
-		if (bBlockActionKey)
-		{
-			SetActionKeyPressTime(EActionKeyType::ActionKey0, 0.0f);
-		}
-	}
-
-	// update key pressed state
-	uint8 Index = static_cast<uint8>(ActionKeyType);
-	ActionKeyTypeStates[Index] = bPressedNew;
-
-	if (IsPressedAnyActionKey(EActionKeyType::Max))
-		return;
-
-	bBlockActionKey = false;
-}
-
-bool APreTestCharacter::IsPressedAnyActionKey(EActionKeyType ActionKeyTypeToIgnore) const
-{
-	for (int32 Index = 0; Index < static_cast<uint8>(EActionKeyType::Max); ++Index)
-	{
-		if (Index != static_cast<uint8>(ActionKeyTypeToIgnore) && ActionKeyTypeStates[Index])
-		{	
-			return true;
-		}
-	}
-
-	return false;
-}
-
-void APreTestCharacter::OpenHUDWidget()
-{
-	if (nullptr == MainHUDWidget)
-	{
-		MainHUDWidget = CreateWidget(GetGameInstance(), MainHUDWidgetClass);
-	}
-
-	if (MainHUDWidget)
-		MainHUDWidget->AddToViewport();
-}
-
-void APreTestCharacter::CloseHUDWidget()
-{
-	if (nullptr != MainHUDWidget && MainHUDWidget->IsInViewport())
-		MainHUDWidget->RemoveFromViewport();
-}
-
-void APreTestCharacter::CreateProjectile(EProjectileType ProjectileType)
+void APreTestCharacter::CreateProjectile(const EProjectileType& ProjectileType)
 {
 	UWorld* World = GetWorld();
 	if (nullptr == World || ProjectileType == EProjectileType::Max)
@@ -268,14 +155,32 @@ void APreTestCharacter::CreateProjectile(EProjectileType ProjectileType)
 	}
 }
 
-void APreTestCharacter::SetActionKeyPressTime(EActionKeyType ActionKeyType, float Time)
+void APreTestCharacter::OpenHUDWidget()
 {
-	if (ActionKeyType == EActionKeyType::Max)
-		return;
+	if (nullptr == MainHUDWidget)
+	{
+		MainHUDWidget = CreateWidget(GetGameInstance(), MainHUDWidgetClass);
+	}
 
-	uint8 Index = static_cast<uint8>(ActionKeyType);
-	ActionKeyPressTimes[Index] = Time;
+	if (MainHUDWidget)
+		MainHUDWidget->AddToViewport();
+}
 
-	OnActionKeyPressTimeChanged.Broadcast(ActionKeyType, Time);
+void APreTestCharacter::CloseHUDWidget()
+{
+	if (nullptr != MainHUDWidget && MainHUDWidget->IsInViewport())
+		MainHUDWidget->RemoveFromViewport();
+}
+
+void APreTestCharacter::UpdateActionKeyState(EActionKeyType ActionKeyType, bool bPressed)
+{
+	if (UActorComponent* Comp = GetComponentByClass(UActionKeyManagementComponent::StaticClass()))
+	{
+		if (UActionKeyManagementComponent* ActionKeyComp = Cast<UActionKeyManagementComponent>(Comp))
+		{
+			ActionKeyComp->UpdateActionKeyState(ActionKeyType, bPressed);
+		}
+			
+	}
 }
 

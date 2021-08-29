@@ -14,26 +14,25 @@ UProjectileManagementComponent::UProjectileManagementComponent()
 	ProjectileObjectCounts.Init(false, static_cast<uint8>(EProjectileType::Max));
 }
 
-void UProjectileManagementComponent::CreateProjectile(EProjectileType ProjectileType, const FVector& Location, const FRotator& Rotation)
+void UProjectileManagementComponent::CreateProjectile(const EProjectileType& ProjectileType, const FVector& Location, const FRotator& Rotation)
 {
 	UWorld* World = GetWorld();
 	if (nullptr == World || ProjectileType == EProjectileType::Max)
 		return;
-
-	TSubclassOf<ABaseProjectile>* SubClass = ProjectileClassList.Find(ProjectileType);
-	if (!SubClass)
-		return;
-
-	ABaseProjectile* NewProjectile = World->SpawnActor<ABaseProjectile>(SubClass->Get(), Location, Rotation);
-	if (NewProjectile && ProjectileType == EProjectileType::Seperate)
+	
+	if (TSubclassOf<ABaseProjectile>* SubClass = ProjectileClassList.Find(ProjectileType))
 	{
-		NewProjectile->OnEndPlay.AddDynamic(this, &UProjectileManagementComponent::EndPlayForSperate);
-	}
+		ABaseProjectile* NewProjectile = World->SpawnActor<ABaseProjectile>(SubClass->Get(), Location, Rotation);
+		if (NewProjectile && ProjectileType == EProjectileType::Seperate)
+		{
+			NewProjectile->OnEndPlay.AddDynamic(this, &UProjectileManagementComponent::EndPlayForSperate);
+		}
 
-	uint8 Index = static_cast<uint8>(ProjectileType);
-	if (ProjectileObjectCounts[Index] < TNumericLimits<uint32>::Max())
-	{
-		ChangeProjectileObjectCount(ProjectileType, ProjectileObjectCounts[Index] + 1);
+		uint8 Index = static_cast<uint8>(ProjectileType);
+		if (ProjectileObjectCounts[Index] < TNumericLimits<uint32>::Max())
+		{
+			ChangeProjectileObjectCount(ProjectileType, ProjectileObjectCounts[Index] + 1);
+		}
 	}
 }
 
@@ -48,7 +47,7 @@ uint32 UProjectileManagementComponent::GetProjectileObjectCount(EProjectileType 
 
 void UProjectileManagementComponent::ResetProjectileObjectCounts()
 {
-	for (uint8 Index = 0; Index < static_cast<uint8>(EProjectileType::Max); ++Index)//(uint32& Count : ProjectileObjectCounts)
+	for (uint8 Index = 0; Index < static_cast<uint8>(EProjectileType::Max); ++Index)
 	{
 		ChangeProjectileObjectCount(static_cast<EProjectileType>(Index), 0);
 	}

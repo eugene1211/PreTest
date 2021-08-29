@@ -32,6 +32,7 @@ private:
 	void StartTimerIfPossible();
 	void StopTimer();
 	void PerformSetRatioWithTimer();
+	class UActionKeyManagementComponent* GetActionKeymanagementComponent();
 
 	FTimerHandle TimerHandle;
 

@@ -7,15 +7,16 @@
 #include "Components/ProgressBar.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/World.h"
+#include "../Character/ActionKeyManagementComponent.h"
 
 
 void UProgressBarCharge::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	if (APreTestCharacter* PrePlayerChar = Cast<APreTestCharacter>(UGameplayStatics::GetPlayerCharacter(this, 0)))
+	if (UActionKeyManagementComponent* Component = GetActionKeymanagementComponent())
 	{
-		PrePlayerChar->OnActionKeyPressTimeChanged.AddUObject(this, &UProgressBarCharge::OnActionKeyPressTimeChanged);
+		Component->OnActionKeyPressTimeChanged.AddUObject(this, &UProgressBarCharge::OnActionKeyPressTimeChanged);
 	}
 
 	SetRatio();
@@ -26,9 +27,9 @@ void UProgressBarCharge::NativeDestruct()
 {
 	StopTimer();
 
-	if (APreTestCharacter* PrePlayerChar = Cast<APreTestCharacter>(UGameplayStatics::GetPlayerCharacter(this, 0)))
+	if (UActionKeyManagementComponent* Component = GetActionKeymanagementComponent())
 	{
-		PrePlayerChar->OnActionKeyPressTimeChanged.RemoveAll(this);
+		Component->OnActionKeyPressTimeChanged.RemoveAll(this);
 	}
 
 	Super::NativeDestruct();
@@ -51,10 +52,10 @@ void UProgressBarCharge::OnActionKeyPressTimeChanged(const EActionKeyType& Actio
 
 void UProgressBarCharge::SetRatio()
 {
-	if (APreTestCharacter* PrePlayerChar = Cast<APreTestCharacter>(UGameplayStatics::GetPlayerCharacter(this, 0)))
+	if (UActionKeyManagementComponent* Component = GetActionKeymanagementComponent())
 	{
-		float HoldMaxTime = PrePlayerChar->GetAction2HoldTime();
-		float HoldCurTime = PrePlayerChar->GetActionKeyPressedTime(EActionKeyType::ActionKey0);
+		float HoldMaxTime = Component->GetAction2HoldTime();
+		float HoldCurTime = Component->GetActionKeyPressedTime(EActionKeyType::ActionKey0);
 		float Ratio = 0.0f;
 		if (0.0f < HoldMaxTime)
 			Ratio = HoldCurTime / HoldMaxTime;
@@ -80,9 +81,9 @@ void UProgressBarCharge::StartTimerIfPossible()
 	if (UWorld* World = GetWorld())
 	{
 		float PressTime = 0.0f;
-		if (APreTestCharacter* PrePlayerChar = Cast<APreTestCharacter>(UGameplayStatics::GetPlayerCharacter(this, 0)))
+		if (UActionKeyManagementComponent* Component = GetActionKeymanagementComponent())
 		{
-			PressTime = PrePlayerChar->GetActionKeyPressTime(EActionKeyType::ActionKey0);
+			PressTime = Component->GetActionKeyPressTime(EActionKeyType::ActionKey0);
 		}
 
 		if (0.0f < PressTime && !TimerHandle.IsValid())
@@ -105,9 +106,9 @@ void UProgressBarCharge::StopTimer()
 
 void UProgressBarCharge::PerformSetRatioWithTimer()
 {
-	if (APreTestCharacter* PrePlayerChar = Cast<APreTestCharacter>(UGameplayStatics::GetPlayerCharacter(this, 0)))
+	if (UActionKeyManagementComponent* Component = GetActionKeymanagementComponent())
 	{
-		if (0.0f < PrePlayerChar->GetActionKeyPressTime(EActionKeyType::ActionKey0))
+		if (0.0f < Component->GetActionKeyPressTime(EActionKeyType::ActionKey0))
 		{
 			SetRatio();
 		}
@@ -116,4 +117,14 @@ void UProgressBarCharge::PerformSetRatioWithTimer()
 			StopTimer();
 		}
 	}
+}
+
+class UActionKeyManagementComponent* UProgressBarCharge::GetActionKeymanagementComponent()
+{
+	if (APreTestCharacter* PrePlayerChar = Cast<APreTestCharacter>(UGameplayStatics::GetPlayerCharacter(this, 0)))
+	{
+		return Cast<UActionKeyManagementComponent>(PrePlayerChar->GetComponentByClass(UActionKeyManagementComponent::StaticClass()));
+	}
+
+	return nullptr;
 }
