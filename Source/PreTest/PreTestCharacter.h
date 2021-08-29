@@ -54,9 +54,6 @@ protected:
 	void OpenHUDWidget();
 	void CloseHUDWidget();
 
-	UFUNCTION()
-	void UpdateActionKeyState(EActionKeyType ActionKeyType, bool bPressed);
-
 	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* InputComponent) override;
 	// End of APawn interface

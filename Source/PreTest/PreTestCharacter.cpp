@@ -171,16 +171,3 @@ void APreTestCharacter::CloseHUDWidget()
 	if (nullptr != MainHUDWidget && MainHUDWidget->IsInViewport())
 		MainHUDWidget->RemoveFromViewport();
 }
-
-void APreTestCharacter::UpdateActionKeyState(EActionKeyType ActionKeyType, bool bPressed)
-{
-	if (UActorComponent* Comp = GetComponentByClass(UActionKeyManagementComponent::StaticClass()))
-	{
-		if (UActionKeyManagementComponent* ActionKeyComp = Cast<UActionKeyManagementComponent>(Comp))
-		{
-			ActionKeyComp->UpdateActionKeyState(ActionKeyType, bPressed);
-		}
-			
-	}
-}
-
