@@ -226,7 +226,7 @@ void APreTestCharacter::CloseHUDWidget()
 void APreTestCharacter::CreateProjectile(EProjectileType ProjectileType)
 {
 	UWorld* World = GetWorld();
-	if (nullptr == World)
+	if (nullptr == World || ProjectileType == EProjectileType::Max)
 		return;
 
 	FVector Location;

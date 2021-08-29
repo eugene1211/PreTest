@@ -17,7 +17,7 @@ UProjectileManagementComponent::UProjectileManagementComponent()
 void UProjectileManagementComponent::CreateProjectile(EProjectileType ProjectileType, const FVector& Location, const FRotator& Rotation)
 {
 	UWorld* World = GetWorld();
-	if (nullptr == World)
+	if (nullptr == World || ProjectileType == EProjectileType::Max)
 		return;
 
 	TSubclassOf<ABaseProjectile>* SubClass = ProjectileClassList.Find(ProjectileType);
@@ -33,22 +33,25 @@ void UProjectileManagementComponent::CreateProjectile(EProjectileType Projectile
 	uint8 Index = static_cast<uint8>(ProjectileType);
 	if (ProjectileObjectCounts[Index] < TNumericLimits<uint32>::Max())
 	{
-		++ProjectileObjectCounts[Index];
+		ChangeProjectileObjectCount(ProjectileType, ProjectileObjectCounts[Index] + 1);
 	}
-
-	OnProjectileObjectCountChanged.Broadcast(ProjectileType, ProjectileObjectCounts[Index]);
 }
 
 uint32 UProjectileManagementComponent::GetProjectileObjectCount(EProjectileType ProjectileType)
 {
+	if(ProjectileType == EProjectileType::Max)
+		return 0;
+
 	uint8 Index = static_cast<uint8>(ProjectileType);
 	return ProjectileObjectCounts[Index];
 }
 
 void UProjectileManagementComponent::ResetProjectileObjectCounts()
 {
-	for (uint32& Count : ProjectileObjectCounts)
-		Count = 0;
+	for (uint8 Index = 0; Index < static_cast<uint8>(EProjectileType::Max); ++Index)//(uint32& Count : ProjectileObjectCounts)
+	{
+		ChangeProjectileObjectCount(static_cast<EProjectileType>(Index), 0);
+	}
 }
 
 void UProjectileManagementComponent::EndPlayForSperate(AActor* Actor, EEndPlayReason::Type EndPlayReason)
@@ -78,4 +81,15 @@ void UProjectileManagementComponent::EndPlayForSperate(AActor* Actor, EEndPlayRe
 			CreateProjectile(EProjectileType::Normal, Location, Rotation);
 		}
 	);
+}
+
+void UProjectileManagementComponent::ChangeProjectileObjectCount(const EProjectileType& ProjectileType, const uint32& Count)
+{
+	if (ProjectileType == EProjectileType::Max)
+		return;
+
+	uint8 Index = static_cast<uint8>(ProjectileType);
+	ProjectileObjectCounts[Index] = Count;
+
+	OnProjectileObjectCountChanged.Broadcast(ProjectileType, ProjectileObjectCounts[Index]);
 }

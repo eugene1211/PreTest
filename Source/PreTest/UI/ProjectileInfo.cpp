@@ -128,7 +128,7 @@ void UProjectileInfo::CreateEntries()
 
 void UProjectileInfo::SetEntryCountText(const EProjectileType& ProjectileType, const uint32& Count)
 {
-	if (!VerticalBox_CountInfos)
+	if (!VerticalBox_CountInfos || ProjectileType == EProjectileType::Max)
 		return;
 
 	uint8 Index = static_cast<uint8>(ProjectileType);

@@ -34,4 +34,7 @@ protected:
 	UFUNCTION()
 	void EndPlayForSperate(AActor* Actor, EEndPlayReason::Type EndPlayReason);
 
+private:
+	void ChangeProjectileObjectCount(const EProjectileType& ProjectileType, const uint32& Count);
+
 };
