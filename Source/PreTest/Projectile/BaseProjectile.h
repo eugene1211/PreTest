@@ -13,6 +13,8 @@ enum class EProjectileType : uint8
 	Charge,
 	Seperate,
 	Reflect,
+
+	Max,
 };
 
 UCLASS()
@@ -27,15 +29,11 @@ public:
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
-	void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	//void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	
 	bool bDestroyByHit;
 
 public:
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
-
-
 	UFUNCTION()
 	virtual void OnHit(AActor* SelfActor, AActor* OtherActor, FVector NormalImpulse, const FHitResult& Hit);
 

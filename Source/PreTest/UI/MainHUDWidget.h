@@ -21,4 +21,5 @@ public:
 
 	UPROPERTY()
 	class UProgressBar* ProgressBar_Charge;
+
 };

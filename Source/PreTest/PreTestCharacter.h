@@ -4,9 +4,16 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
-#include "BaseProjectile.h"
+#include "Projectile/BaseProjectile.h"
 #include "PreTestCharacter.generated.h"
 
+UENUM()
+enum class EActionKeyType : uint8
+{
+	ActionKey0,
+	ActionKey1,
+	Max,
+};
 
 UCLASS(config=Game)
 class APreTestCharacter : public ACharacter
@@ -21,44 +28,8 @@ class APreTestCharacter : public ACharacter
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class USpringArmComponent* CameraBoom;
 
-	class UMainHUDWidget* MainHUDWidget;
-	float PressQTime;
-	bool bWPressedPossible;
-
-protected:
-	/** Called for side to side input */
-	void MoveRight(float Val);
-
-	/** Handle touch inputs. */
-	void TouchStarted(const ETouchIndex::Type FingerIndex, const FVector Location);
-
-	/** Handle touch stop event. */
-	void TouchStopped(const ETouchIndex::Type FingerIndex, const FVector Location);
-
-	void ActionQPreesed();
-	void ActionQReleased();
-
-	void ActionWPreesed();
-	void ActionWReleased();
-
-	void OpenHUDWidget();
-	void CloseHUDWidget();
-
-	void CreateProjectile(enum EProjectileType ProjectileType);
-	void CreateProjectileImpl(EProjectileType ProjectileType, const FVector& Location, const FRotator& Rotation);
-
-	UFUNCTION()
-	void EndPlayForSperate(AActor* Actor, EEndPlayReason::Type EndPlayReason);
-
-	// APawn interface
-	virtual void SetupPlayerInputComponent(class UInputComponent* InputComponent) override;
-	// End of APawn interface
-
-	UPROPERTY(EditAnywhere, Category = "PreTest")
-	TSubclassOf<UMainHUDWidget> MainHUDWidgetClass;
-
-	UPROPERTY(EditAnywhere, Category = "PreTest")
-	TMap<EProjectileType, TSubclassOf<class ABaseProjectile>> ProjectileClassList;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "PreTest", meta = (AllowPrivateAccess = "true"))
+	class UProjectileManagementComponent* ProjectileManagementComponent;
 
 public:
 	APreTestCharacter();
@@ -70,5 +41,39 @@ public:
 
 	virtual void BeginPlay() override;
 	void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+protected:
+	/** Called for side to side input */
+	void MoveRight(float Val);
+
+	/** Handle touch inputs. */
+	void TouchStarted(const ETouchIndex::Type FingerIndex, const FVector Location);
+
+	/** Handle touch stop event. */
+	void TouchStopped(const ETouchIndex::Type FingerIndex, const FVector Location);
+	 
+	void UpdateActionKeyState(EActionKeyType ActionKeyType, bool bPressed);
+	bool IsPressedAnyActionKey(EActionKeyType ActionKeyTypeToIgnore) const;
+
+	void OpenHUDWidget();
+	void CloseHUDWidget();
+
+	void CreateProjectile(EProjectileType ProjectileType);
+
+	// APawn interface
+	virtual void SetupPlayerInputComponent(class UInputComponent* InputComponent) override;
+	// End of APawn interface
+
+	UPROPERTY(EditAnywhere, Category = "PreTest")
+	TSubclassOf<class UMainHUDWidget> MainHUDWidgetClass;
+
+private:
+	class UMainHUDWidget* MainHUDWidget;
+
+	bool bWPressedPossible;
+	bool bFired;
+
+	TArray<bool> ActionKeyTypeStates;
+	TArray<float> ActionKeyPressTimes;
 
 };

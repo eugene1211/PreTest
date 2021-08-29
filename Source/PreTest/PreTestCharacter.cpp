@@ -7,7 +7,8 @@
 #include "Components/ArrowComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "MainHUDWidget.h"
+#include "UI/MainHUDWidget.h"
+#include "Character/ProjectileManagementComponent.h"
 
 
 APreTestCharacter::APreTestCharacter()
@@ -44,7 +45,13 @@ APreTestCharacter::APreTestCharacter()
 	GetCharacterMovement()->MaxWalkSpeed = 600.f;
 	GetCharacterMovement()->MaxFlySpeed = 600.f;
 
-	PressQTime = 0.0f;
+	// Create Projectile Management Component
+	ProjectileManagementComponent = CreateDefaultSubobject<UProjectileManagementComponent>(TEXT("ProjManageComp"));
+
+	// init variable
+	bFired = false;
+	ActionKeyTypeStates.Init(false, static_cast<uint8>(EActionKeyType::Max));
+	ActionKeyPressTimes.Init(0.0f, static_cast<uint8>(EActionKeyType::Max));
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named MyCharacter (to avoid direct content references in C++)
@@ -67,6 +74,10 @@ void APreTestCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 //////////////////////////////////////////////////////////////////////////
 // Input
 
+DECLARE_DELEGATE_TwoParams(FInputActionKey, EActionKeyType, bool);
+#define BIND_ACTION_KEY(InputComponent, ActionName, InputEvent, Param1, Param2) \
+	InputComponent->BindAction<FInputActionKey>(ActionName, InputEvent, this, &APreTestCharacter::UpdateActionKeyState, Param1, Param2);
+
 void APreTestCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
 {
 	// set up gameplay key bindings
@@ -77,11 +88,10 @@ void APreTestCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 	PlayerInputComponent->BindTouch(IE_Pressed, this, &APreTestCharacter::TouchStarted);
 	PlayerInputComponent->BindTouch(IE_Released, this, &APreTestCharacter::TouchStopped);
 
-	PlayerInputComponent->BindAction("Action0", IE_Pressed, this, &APreTestCharacter::ActionQPreesed);
-	PlayerInputComponent->BindAction("Action0", IE_Released, this, &APreTestCharacter::ActionQReleased);
-
-	PlayerInputComponent->BindAction("Action1", IE_Pressed, this, &APreTestCharacter::ActionWPreesed);
-	PlayerInputComponent->BindAction("Action1", IE_Released, this, &APreTestCharacter::ActionWReleased);
+	BIND_ACTION_KEY(PlayerInputComponent, "ActionKey0", IE_Pressed, EActionKeyType::ActionKey0, true);
+	BIND_ACTION_KEY(PlayerInputComponent, "ActionKey0", IE_Released, EActionKeyType::ActionKey0, false);
+	BIND_ACTION_KEY(PlayerInputComponent, "ActionKey1", IE_Pressed, EActionKeyType::ActionKey1, true);
+	BIND_ACTION_KEY(PlayerInputComponent, "ActionKey1", IE_Released, EActionKeyType::ActionKey1, false);
 }
 
 void APreTestCharacter::MoveRight(float Value)
@@ -101,42 +111,98 @@ void APreTestCharacter::TouchStopped(const ETouchIndex::Type FingerIndex, const 
 	StopJumping();
 }
 
-void APreTestCharacter::ActionQPreesed()
+void APreTestCharacter::UpdateActionKeyState(EActionKeyType ActionKeyType, bool bPressedNew)
 {
-	PressQTime = GetGameTimeSinceCreation();
-	bWPressedPossible = true;
-}
+	if (!bFired)
+	{
+		switch (ActionKeyType)
+		{
+			case EActionKeyType::ActionKey0:
+			{
+				if (IsPressedAnyActionKey(ActionKeyType))
+				{
+					bFired = true;
+					break;
+				}
 
-void APreTestCharacter::ActionQReleased()
-{
-	float ReleaseTime = GetGameTimeSinceCreation();
-	float TimeToPressed = ReleaseTime - PressQTime;
-	if (TimeToPressed < 3.0f)
-		CreateProjectile(EProjectileType::Normal);
-	else
-		CreateProjectile(EProjectileType::Charge);
+				uint8 Index = static_cast<uint8>(ActionKeyType);
+				if (bPressedNew)
+				{
+					ActionKeyPressTimes[Index] = GetGameTimeSinceCreation();
+				}
+				else
+				{
+					float ReleaseTime = GetGameTimeSinceCreation();
+					float TimeToPressed = ReleaseTime - ActionKeyPressTimes[Index];
+					if (TimeToPressed < 3.0f)
+					{
+						CreateProjectile(EProjectileType::Normal);
+						bFired = true;
+					}
+					else
+					{
+						CreateProjectile(EProjectileType::Charge);
+						bFired = true;
+					}
 
-	PressQTime = 0.0f;
-}
+					ActionKeyPressTimes[Index] = 0.0f;
+				}
+			}
+			break;
 
-void APreTestCharacter::ActionWPreesed()
-{
-	if (PressQTime <= 0.0f || !bWPressedPossible)
+			case EActionKeyType::ActionKey1:
+			{
+				if (bPressedNew)
+				{
+					uint8 Index = static_cast<uint8>(EActionKeyType::ActionKey0);
+					if (ActionKeyPressTimes[Index] <= 0.0f)
+						break;
+
+					float ReleaseTime = GetGameTimeSinceCreation();
+					float TimeToPressed = ReleaseTime - ActionKeyPressTimes[Index];
+					if (TimeToPressed <= 1.0f)
+					{
+						CreateProjectile(EProjectileType::Seperate);
+						bFired = true;
+					}
+				}
+				else
+				{
+					if (IsPressedAnyActionKey(ActionKeyType))
+					{
+						bFired = true;
+						break;
+					}
+
+					CreateProjectile(EProjectileType::Reflect);
+					bFired = true;
+				}
+			}
+			break;
+		}
+	}
+
+	// update key pressed state
+	uint8 Index = static_cast<uint8>(ActionKeyType);
+	ActionKeyTypeStates[Index] = bPressedNew;
+
+	if (IsPressedAnyActionKey(EActionKeyType::Max))
 		return;
 
-	bWPressedPossible = false;
-
-	float ReleaseTime = GetGameTimeSinceCreation();
-	float TimeToPressed = ReleaseTime - PressQTime;
-	if (TimeToPressed <= 1.0f)
-	{
-		CreateProjectile(EProjectileType::Seperate);
-	}
+	bFired = false;
 }
 
-void APreTestCharacter::ActionWReleased()
+bool APreTestCharacter::IsPressedAnyActionKey(EActionKeyType ActionKeyTypeToIgnore) const
 {
-	CreateProjectile(EProjectileType::Reflect);
+	for (int32 Index = 0; Index < static_cast<uint8>(EActionKeyType::Max); ++Index)
+	{
+		if (Index != static_cast<uint8>(ActionKeyTypeToIgnore) && ActionKeyTypeStates[Index])
+		{	
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void APreTestCharacter::OpenHUDWidget()
@@ -176,50 +242,9 @@ void APreTestCharacter::CreateProjectile(EProjectileType ProjectileType)
 		}
 	}
 
-	CreateProjectileImpl(ProjectileType, Location, Rotation);
-}
-
-void APreTestCharacter::CreateProjectileImpl(EProjectileType ProjectileType, const FVector& Location, const FRotator& Rotation)
-{
-	UWorld* World = GetWorld();
-	if (nullptr == World)
-		return;
-
-	TSubclassOf<ABaseProjectile>* SubClass = ProjectileClassList.Find(ProjectileType);
-	if (!SubClass)
-		return;
-
-	ABaseProjectile* NewProjectile = World->SpawnActor<ABaseProjectile>(SubClass->Get(), Location, Rotation);
-	if (NewProjectile && ProjectileType == EProjectileType::Seperate)
+	if (ProjectileManagementComponent)
 	{
-		NewProjectile->OnEndPlay.AddDynamic(this, &APreTestCharacter::EndPlayForSperate);
+		ProjectileManagementComponent->CreateProjectile(ProjectileType, Location, Rotation);
 	}
 }
 
-void APreTestCharacter::EndPlayForSperate(AActor* Actor, EEndPlayReason::Type EndPlayReason)
-{
-	if (!Actor)
-		return;
-
-	ABaseProjectile* Projectile = Cast<ABaseProjectile>(Actor);
-	if (!Projectile || Projectile->IsDestroyByHit())
-		return;
-
-	Projectile->ForEachComponent<UArrowComponent>(false, [&](const UArrowComponent* InArrowComp)
-	{
-		if (!InArrowComp)
-			return;
-
-		FVector Location = InArrowComp->GetComponentLocation();
-		FRotator Rotation = InArrowComp->GetComponentRotation();
-		float OriginPitch = Rotation.Pitch;
-
-		CreateProjectileImpl(EProjectileType::Normal, Location, Rotation);
-
-		Rotation.Pitch = OriginPitch - 45.0f;
-		CreateProjectileImpl(EProjectileType::Normal, Location, Rotation);
-
-		Rotation.Pitch = OriginPitch + 45.0f;
-		CreateProjectileImpl(EProjectileType::Normal, Location, Rotation);
-	});
-}
