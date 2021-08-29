@@ -32,7 +32,10 @@ protected:
 	TArray<uint32> ProjectileObjectCounts;
 
 	UFUNCTION()
-	void EndPlayForSperate(AActor* Actor, EEndPlayReason::Type EndPlayReason);
+	void EndPlayForSeperate(AActor* Actor, EEndPlayReason::Type EndPlayReason);
+	
+	UPROPERTY(EditAnywhere, Category = "PreTest")
+	float SeperateDegree;
 
 private:
 	void ChangeProjectileObjectCount(const EProjectileType& ProjectileType, const uint32& Count);

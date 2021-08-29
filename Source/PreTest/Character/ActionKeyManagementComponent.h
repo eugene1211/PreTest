@@ -29,7 +29,7 @@ public:
 	float GetActionKeyPressTime(const EActionKeyType& ActionKeyType) const;
 	float GetActionKeyPressedTime(const EActionKeyType& ActionKeyType) const;
 
-	float GetAction2HoldTime() const { return Action2HoldTime; }
+	float GetActionHoldTime(const EProjectileType& ProjectileType) const;
 
 	bool IsPressedAnyActionKey(EActionKeyType ActionKeyTypeToIgnore) const;
 
@@ -44,10 +44,7 @@ protected:
 	virtual void BeginPlay() override;
 
 	UPROPERTY(EditAnywhere, Category = "PreTest")
-	float Action2HoldTime;
-
-	UPROPERTY(EditAnywhere, Category = "PreTest")
-	float Action3HoldTime;
+	TMap<EProjectileType, float> ProjectileActionKeyHoldTime;
 
 private:
 	void SetActionKeyPressTime(EActionKeyType ActionKeyType, float Time);

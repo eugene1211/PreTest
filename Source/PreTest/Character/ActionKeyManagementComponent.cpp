@@ -29,6 +29,14 @@ float UActionKeyManagementComponent::GetActionKeyPressedTime(const EActionKeyTyp
 	return PressTime <= 0.0f ? 0.0f : GetOwner()->GetGameTimeSinceCreation() - ActionKeyPressTimes[static_cast<uint8>(ActionKeyType)];
 }
 
+float UActionKeyManagementComponent::GetActionHoldTime(const EProjectileType& ProjectileType) const
+{
+	if (const float* HoldTimePtr = ProjectileActionKeyHoldTime.Find(ProjectileType))
+		return *HoldTimePtr;
+
+	return 0.0f;
+}
+
 bool UActionKeyManagementComponent::IsPressedAnyActionKey(EActionKeyType ActionKeyTypeToIgnore) const
 {
 	for (int32 Index = 0; Index < static_cast<uint8>(EActionKeyType::Max); ++Index)
@@ -85,7 +93,7 @@ void UActionKeyManagementComponent::ExecuteActionIfPossible(EActionKeyType Actio
 				float ReleaseTime = GetOwner()->GetGameTimeSinceCreation();
 				uint8 Index = static_cast<uint8>(ActionKeyType);
 				float TimeToPressed = ReleaseTime - ActionKeyPressTimes[Index];
-				if (TimeToPressed < Action2HoldTime)
+				if (TimeToPressed < GetActionHoldTime(EProjectileType::Charge))
 				{
 					OnActionEnabled.Broadcast(EProjectileType::Normal);
 					bBlockActionKey = true;
@@ -109,7 +117,7 @@ void UActionKeyManagementComponent::ExecuteActionIfPossible(EActionKeyType Actio
 
 				float ReleaseTime = GetOwner()->GetGameTimeSinceCreation();
 				float TimeToPressed = ReleaseTime - ActionKeyPressTimes[Index];
-				if (TimeToPressed <= Action3HoldTime)
+				if (TimeToPressed <= GetActionHoldTime(EProjectileType::Seperate))
 				{
 					OnActionEnabled.Broadcast(EProjectileType::Seperate);
 					bBlockActionKey = true;

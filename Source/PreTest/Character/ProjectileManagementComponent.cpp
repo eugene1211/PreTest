@@ -12,6 +12,7 @@ UProjectileManagementComponent::UProjectileManagementComponent()
 	PrimaryComponentTick.bCanEverTick = false;
 
 	ProjectileObjectCounts.Init(false, static_cast<uint8>(EProjectileType::Max));
+	SeperateDegree = 45.0f;
 }
 
 void UProjectileManagementComponent::CreateProjectile(const EProjectileType& ProjectileType, const FVector& Location, const FRotator& Rotation)
@@ -25,7 +26,7 @@ void UProjectileManagementComponent::CreateProjectile(const EProjectileType& Pro
 		ABaseProjectile* NewProjectile = World->SpawnActor<ABaseProjectile>(SubClass->Get(), Location, Rotation);
 		if (NewProjectile && ProjectileType == EProjectileType::Seperate)
 		{
-			NewProjectile->OnEndPlay.AddDynamic(this, &UProjectileManagementComponent::EndPlayForSperate);
+			NewProjectile->OnEndPlay.AddDynamic(this, &UProjectileManagementComponent::EndPlayForSeperate);
 		}
 
 		uint8 Index = static_cast<uint8>(ProjectileType);
@@ -53,13 +54,13 @@ void UProjectileManagementComponent::ResetProjectileObjectCounts()
 	}
 }
 
-void UProjectileManagementComponent::EndPlayForSperate(AActor* Actor, EEndPlayReason::Type EndPlayReason)
+void UProjectileManagementComponent::EndPlayForSeperate(AActor* Actor, EEndPlayReason::Type EndPlayReason)
 {
 	if (!Actor)
 		return;
 
 	ABaseProjectile* Projectile = Cast<ABaseProjectile>(Actor);
-	if (!Projectile || Projectile->IsDestroyByHit())
+	if (!Projectile || Projectile->IsDestroyedByHit())
 		return;
 
 	Projectile->ForEachComponent<UArrowComponent>(false, [&](const UArrowComponent* InArrowComp)
@@ -73,10 +74,10 @@ void UProjectileManagementComponent::EndPlayForSperate(AActor* Actor, EEndPlayRe
 
 			CreateProjectile(EProjectileType::Normal, Location, Rotation);
 
-			Rotation.Pitch = OriginPitch - 45.0f;
+			Rotation.Pitch = OriginPitch - SeperateDegree;
 			CreateProjectile(EProjectileType::Normal, Location, Rotation);
 
-			Rotation.Pitch = OriginPitch + 45.0f;
+			Rotation.Pitch = OriginPitch + SeperateDegree;
 			CreateProjectile(EProjectileType::Normal, Location, Rotation);
 		}
 	);

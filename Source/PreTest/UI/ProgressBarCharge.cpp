@@ -8,6 +8,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Engine/World.h"
 #include "../Character/ActionKeyManagementComponent.h"
+#include "../Projectile/BaseProjectile.h"
 
 
 void UProgressBarCharge::NativeConstruct()
@@ -56,7 +57,7 @@ void UProgressBarCharge::SetRatio()
 {
 	if (UActionKeyManagementComponent* Component = GetActionKeymanagementComponent())
 	{
-		float HoldMaxTime = Component->GetAction2HoldTime();
+		float HoldMaxTime = Component->GetActionHoldTime(EProjectileType::Charge);
 		float HoldCurTime = Component->GetActionKeyPressedTime(EActionKeyType::ActionKey0);
 		float Ratio = 0.0f;
 		if (0.0f < HoldMaxTime)

@@ -31,11 +31,14 @@ protected:
 	virtual void BeginPlay() override;
 	//void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	
+	bool bDestroyedByHit;
+
+	UPROPERTY(EditAnywhere, Category = "PreTest")
 	bool bDestroyByHit;
 
 public:
 	UFUNCTION()
 	virtual void OnHit(AActor* SelfActor, AActor* OtherActor, FVector NormalImpulse, const FHitResult& Hit);
 
-	bool IsDestroyByHit() const { return bDestroyByHit; }
+	bool IsDestroyedByHit() const { return bDestroyedByHit; }
 };

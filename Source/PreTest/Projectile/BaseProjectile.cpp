@@ -17,9 +17,10 @@ void ABaseProjectile::BeginPlay()
 {
 	Super::BeginPlay();
 
-	bDestroyByHit = false;
+	bDestroyedByHit = false;
 
-	OnActorHit.AddDynamic(this, &ABaseProjectile::OnHit);
+	if (bDestroyByHit)
+		OnActorHit.AddDynamic(this, &ABaseProjectile::OnHit);
 
 	TArray<UActorComponent*> CollisionComponentList = GetComponentsByTag(UBoxComponent::StaticClass(), "Collision");
 	if (0 == CollisionComponentList.Num())
@@ -39,7 +40,7 @@ void ABaseProjectile::OnHit(AActor* SelfActor, AActor* OtherActor, FVector Norma
 {
 	if ((OtherActor != nullptr) && (OtherActor != this))
 	{
-		bDestroyByHit = true;
+		bDestroyedByHit = true;
 		Destroy();
 	}
 }
