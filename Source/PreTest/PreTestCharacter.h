@@ -70,9 +70,7 @@ protected:
 private:
 	class UMainHUDWidget* MainHUDWidget;
 
-	bool bWPressedPossible;
 	bool bFired;
-
 	TArray<bool> ActionKeyTypeStates;
 	TArray<float> ActionKeyPressTimes;
 
