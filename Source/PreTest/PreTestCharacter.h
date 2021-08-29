@@ -42,6 +42,14 @@ public:
 	virtual void BeginPlay() override;
 	void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+	float GetActionKeyPressTime(const EActionKeyType& ActionKeyType) const;
+	float GetActionKeyPressedTime(const EActionKeyType& ActionKeyType) const;
+
+	float GetAction2HoldTime() const { return Action2HoldTime; }
+
+	DECLARE_EVENT_TwoParams(APreTestCharacter, FOnKeyPressedTimeChanged, const EActionKeyType&, const float&);
+	FOnKeyPressedTimeChanged OnActionKeyPressTimeChanged;
+
 protected:
 	/** Called for side to side input */
 	void MoveRight(float Val);
@@ -65,12 +73,20 @@ protected:
 	// End of APawn interface
 
 	UPROPERTY(EditAnywhere, Category = "PreTest")
-	TSubclassOf<class UMainHUDWidget> MainHUDWidgetClass;
+	TSubclassOf<class UUserWidget> MainHUDWidgetClass;
+
+	UPROPERTY(EditAnywhere, Category = "PreTest")
+	float Action2HoldTime;
+
+	UPROPERTY(EditAnywhere, Category = "PreTest")
+	float Action3HoldTime;
 
 private:
-	class UMainHUDWidget* MainHUDWidget;
+	void SetActionKeyPressTime(EActionKeyType ActionKeyType, float Time);
 
-	bool bFired;
+	class UUserWidget* MainHUDWidget;
+
+	bool bBlockActionKey;
 	TArray<bool> ActionKeyTypeStates;
 	TArray<float> ActionKeyPressTimes;
 

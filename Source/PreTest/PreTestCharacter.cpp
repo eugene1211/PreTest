@@ -5,9 +5,9 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
 #include "Components/ArrowComponent.h"
+#include "Blueprint/UserWidget.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "UI/MainHUDWidget.h"
 #include "Character/ProjectileManagementComponent.h"
 
 
@@ -49,7 +49,7 @@ APreTestCharacter::APreTestCharacter()
 	ProjectileManagementComponent = CreateDefaultSubobject<UProjectileManagementComponent>(TEXT("ProjManageComp"));
 
 	// init variable
-	bFired = false;
+	bBlockActionKey = false;
 	ActionKeyTypeStates.Init(false, static_cast<uint8>(EActionKeyType::Max));
 	ActionKeyPressTimes.Init(0.0f, static_cast<uint8>(EActionKeyType::Max));
 
@@ -69,6 +69,24 @@ void APreTestCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	CloseHUDWidget();
 
 	Super::EndPlay(EndPlayReason);
+}
+
+float APreTestCharacter::GetActionKeyPressTime(const EActionKeyType& ActionKeyType) const
+{
+	if (ActionKeyType == EActionKeyType::Max)
+		return 0.0f;
+
+	uint8 Index = static_cast<uint8>(ActionKeyType);
+	if (ActionKeyPressTimes[Index] <= 0.0f)
+		return 0.0f;
+
+	return ActionKeyPressTimes[Index];
+}
+
+float APreTestCharacter::GetActionKeyPressedTime(const EActionKeyType& ActionKeyType) const
+{
+	float PressTime = GetActionKeyPressTime(ActionKeyType);
+	return PressTime <= 0.0f? 0.0f : GetGameTimeSinceCreation() - ActionKeyPressTimes[static_cast<uint8>(ActionKeyType)];
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -113,7 +131,7 @@ void APreTestCharacter::TouchStopped(const ETouchIndex::Type FingerIndex, const 
 
 void APreTestCharacter::UpdateActionKeyState(EActionKeyType ActionKeyType, bool bPressedNew)
 {
-	if (!bFired)
+	if (!bBlockActionKey)
 	{
 		switch (ActionKeyType)
 		{
@@ -121,31 +139,29 @@ void APreTestCharacter::UpdateActionKeyState(EActionKeyType ActionKeyType, bool 
 			{
 				if (IsPressedAnyActionKey(ActionKeyType))
 				{
-					bFired = true;
+					bBlockActionKey = true;
 					break;
 				}
-
-				uint8 Index = static_cast<uint8>(ActionKeyType);
+				
 				if (bPressedNew)
 				{
-					ActionKeyPressTimes[Index] = GetGameTimeSinceCreation();
+					SetActionKeyPressTime(ActionKeyType, GetGameTimeSinceCreation());
 				}
 				else
 				{
 					float ReleaseTime = GetGameTimeSinceCreation();
+					uint8 Index = static_cast<uint8>(ActionKeyType);
 					float TimeToPressed = ReleaseTime - ActionKeyPressTimes[Index];
-					if (TimeToPressed < 3.0f)
+					if (TimeToPressed < Action2HoldTime)
 					{
 						CreateProjectile(EProjectileType::Normal);
-						bFired = true;
+						bBlockActionKey = true;
 					}
 					else
 					{
 						CreateProjectile(EProjectileType::Charge);
-						bFired = true;
+						bBlockActionKey = true;
 					}
-
-					ActionKeyPressTimes[Index] = 0.0f;
 				}
 			}
 			break;
@@ -160,25 +176,30 @@ void APreTestCharacter::UpdateActionKeyState(EActionKeyType ActionKeyType, bool 
 
 					float ReleaseTime = GetGameTimeSinceCreation();
 					float TimeToPressed = ReleaseTime - ActionKeyPressTimes[Index];
-					if (TimeToPressed <= 1.0f)
+					if (TimeToPressed <= Action3HoldTime)
 					{
 						CreateProjectile(EProjectileType::Seperate);
-						bFired = true;
+						bBlockActionKey = true;
 					}
 				}
 				else
 				{
 					if (IsPressedAnyActionKey(ActionKeyType))
 					{
-						bFired = true;
+						bBlockActionKey = true;
 						break;
 					}
 
 					CreateProjectile(EProjectileType::Reflect);
-					bFired = true;
+					bBlockActionKey = true;
 				}
 			}
 			break;
+		}
+
+		if (bBlockActionKey)
+		{
+			SetActionKeyPressTime(EActionKeyType::ActionKey0, 0.0f);
 		}
 	}
 
@@ -189,7 +210,7 @@ void APreTestCharacter::UpdateActionKeyState(EActionKeyType ActionKeyType, bool 
 	if (IsPressedAnyActionKey(EActionKeyType::Max))
 		return;
 
-	bFired = false;
+	bBlockActionKey = false;
 }
 
 bool APreTestCharacter::IsPressedAnyActionKey(EActionKeyType ActionKeyTypeToIgnore) const
@@ -209,8 +230,7 @@ void APreTestCharacter::OpenHUDWidget()
 {
 	if (nullptr == MainHUDWidget)
 	{
-		UUserWidget* NewWidget = CreateWidget(GetGameInstance(), MainHUDWidgetClass);
-		MainHUDWidget = Cast<UMainHUDWidget>(NewWidget);
+		MainHUDWidget = CreateWidget(GetGameInstance(), MainHUDWidgetClass);
 	}
 
 	if (MainHUDWidget)
@@ -246,5 +266,16 @@ void APreTestCharacter::CreateProjectile(EProjectileType ProjectileType)
 	{
 		ProjectileManagementComponent->CreateProjectile(ProjectileType, Location, Rotation);
 	}
+}
+
+void APreTestCharacter::SetActionKeyPressTime(EActionKeyType ActionKeyType, float Time)
+{
+	if (ActionKeyType == EActionKeyType::Max)
+		return;
+
+	uint8 Index = static_cast<uint8>(ActionKeyType);
+	ActionKeyPressTimes[Index] = Time;
+
+	OnActionKeyPressTimeChanged.Broadcast(ActionKeyType, Time);
 }
 
