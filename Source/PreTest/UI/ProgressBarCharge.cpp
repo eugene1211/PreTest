@@ -14,23 +14,25 @@ void UProgressBarCharge::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	PrevRatio = 0.0f;
+
+	SetRatio();
+	StartTimerIfPossible();
+
 	if (UActionKeyManagementComponent* Component = GetActionKeymanagementComponent())
 	{
 		Component->OnActionKeyPressTimeChanged.AddUObject(this, &UProgressBarCharge::OnActionKeyPressTimeChanged);
 	}
-
-	SetRatio();
-	StartTimerIfPossible();
 }
 
 void UProgressBarCharge::NativeDestruct()
 {
-	StopTimer();
-
 	if (UActionKeyManagementComponent* Component = GetActionKeymanagementComponent())
 	{
 		Component->OnActionKeyPressTimeChanged.RemoveAll(this);
 	}
+
+	StopTimer();
 
 	Super::NativeDestruct();
 }
@@ -69,10 +71,14 @@ void UProgressBarCharge::SetRatio()
 			SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 
 			if (FadeInRatioMax < 1.0f)
+			{
 				SetRenderOpacity(FMath::Min(Ratio / FadeInRatioMax, 1.0f));
+			}
 		}
 
+
 		ProgressBar_Charge->SetPercent(FMath::Min(Ratio, 1.0f));
+		PlayAnimWithRatio(Ratio);
 	}
 }
 
@@ -127,4 +133,26 @@ class UActionKeyManagementComponent* UProgressBarCharge::GetActionKeymanagementC
 	}
 
 	return nullptr;
+}
+
+void UProgressBarCharge::PlayAnimWithRatio(float Ratio)
+{
+	if (1.0f <= Ratio)
+	{
+		if (Anim_Min && IsAnimationPlaying(Anim_Min))
+			StopAnimation(Anim_Min);
+
+		if (PrevRatio < 1.0f && Anim_Max && !IsAnimationPlaying(Anim_Max))
+			PlayAnimation(Anim_Max);
+	}
+	else
+	{
+		if (Anim_Max && IsAnimationPlaying(Anim_Max))
+			StopAnimation(Anim_Max);
+
+		if (Anim_Min && !IsAnimationPlaying(Anim_Min))
+			PlayAnimation(Anim_Min, 0.0f, 0);
+	}
+
+	PrevRatio = Ratio;
 }

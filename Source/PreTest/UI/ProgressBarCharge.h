@@ -17,6 +17,12 @@ class PRETEST_API UProgressBarCharge : public UUserWidget
 	UPROPERTY(Meta = (BindWidget))
 	class UProgressBar* ProgressBar_Charge;
 
+	UPROPERTY(meta = (BindWidgetAnim), Transient)
+	UWidgetAnimation* Anim_Min;
+
+	UPROPERTY(meta = (BindWidgetAnim), Transient)
+	UWidgetAnimation* Anim_Max;
+
 	UPROPERTY(EditAnywhere)
 	float FadeInRatioMax;
 
@@ -34,6 +40,9 @@ private:
 	void PerformSetRatioWithTimer();
 	class UActionKeyManagementComponent* GetActionKeymanagementComponent();
 
+	void PlayAnimWithRatio(float Ratio);
+
 	FTimerHandle TimerHandle;
+	float PrevRatio;
 
 };
